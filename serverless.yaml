@@ -1,0 +1,62 @@
+service: mb-aws
+frameworkVersion: '2'
+configValidationMode: error
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  region: eu-west-1
+  timeout: 30
+  stage: ${opt:stage,  'dev'}
+  environment:
+    REGION: ${self:provider.region}
+    POST_TABLE: ${self:service}-post
+  iam:
+    role:
+      statements:
+      - Effect: "Allow"
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+        Resource: "*"
+
+package:
+  individually: false
+  excludeDevDependencies: true
+
+plugins:
+  - serverless-offline
+
+functions:
+  create:
+    handler: lambda/posts.create
+    events:
+      - http:
+          path: post
+          method: post
+          cors: true
+  get:
+    handler: lambda/posts.get
+    events:
+      - http:
+          path: post/{postId}
+          method: get
+          cors: true
+
+custom:
+  serverless-offline:
+    httpPort: 4000
+    
+resources:
+  Resources:
+    PostTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.POST_TABLE}
+        AttributeDefinitions:
+          - AttributeName: postId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: postId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
